@@ -38,6 +38,9 @@ struct MetricsSnapshot: Codable, Equatable, Sendable {
     var batteryOnACPower: Bool? = nil
     var batteryMinutesRemaining: Int? = nil
 
+    /// Empty when process sampling is disabled or macOS refuses to list processes.
+    var topProcesses: TopProcesses = .empty
+
     static let empty = MetricsSnapshot(
         timestamp: .distantPast,
         cpuPercent: 0,

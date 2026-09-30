@@ -9,6 +9,8 @@ import Foundation
 import SwiftUI
 
 
+import SwiftUI
+
 struct MenuBarView: View {
     @ObservedObject var monitor: MetricsMonitor
 
@@ -20,13 +22,13 @@ struct MenuBarView: View {
                 title: "CPU",
                 systemImage: "cpu",
                 percent: s.cpuPercent,
-                detail: "Overall load, all cores"
+                detail: cpuDetail(s)
             )
             MetricRow(
                 title: "Memory",
                 systemImage: "memorychip",
                 percent: s.memoryPercent,
-                detail: "\(Format.memory(s.memoryUsedBytes)) of \(Format.memory(s.memoryTotalBytes))"
+                detail: memoryDetail(s)
             )
             MetricRow(
                 title: "Network",
@@ -67,6 +69,20 @@ struct MenuBarView: View {
         }
         .padding(16)
         .frame(width: 300)
+    }
+
+    private func cpuDetail(_ s: MetricsSnapshot) -> String {
+        let top = s.topProcesses.byCPU.prefix(2).map { "\($0.name) \(Int($0.cpuPercent.rounded())) %" }
+        return top.isEmpty ? "Overall load, all cores" : "Top: " + top.joined(separator: ", ")
+    }
+
+    private func memoryDetail(_ s: MetricsSnapshot) -> String {
+        var text = "\(Format.memory(s.memoryUsedBytes)) of \(Format.memory(s.memoryTotalBytes))"
+        let top = s.topProcesses.byMemory.prefix(2).map { "\($0.name) \(Format.memory($0.memoryBytes))" }
+        if !top.isEmpty {
+            text += "\nTop: " + top.joined(separator: ", ")
+        }
+        return text
     }
 
     private func batteryDetail(_ s: MetricsSnapshot) -> String {

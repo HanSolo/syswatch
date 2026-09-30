@@ -15,6 +15,8 @@ struct MonitorConfig {
     var maxNetworkBytesPerSec: Double = 125_000_000
     /// Disk: combined read + write bytes/sec that counts as 100%. Default: 2 GB/s.
     var maxDiskBytesPerSec: Double = 2_000_000_000
+    /// How many top processes (by CPU and by memory) to report. 0 disables process sampling.
+    var topProcessCount: Int = 3
 }
 
 /// Samples all metrics once per second and publishes the latest snapshot.
@@ -41,6 +43,11 @@ final class MetricsMonitor: ObservableObject {
     private let networkSampler = NetworkSampler()
     private let diskSampler = DiskSampler()
     private let batterySampler = BatterySampler()
+    private let processSampler = ProcessSampler()
+
+    private var topProcesses: TopProcesses = .empty
+    private var processSamplingInFlight = false
+    private var tickCount = 0
 
     private var task: Task<Void, Never>?
 
@@ -65,6 +72,7 @@ final class MetricsMonitor: ObservableObject {
         let network = networkSampler.sample()
         let disk = diskSampler.sample()
         let battery = batterySampler.sample()
+        refreshTopProcesses()
 
         let networkTotal = network.rxBytesPerSec + network.txBytesPerSec
         let diskTotal = disk.readBytesPerSec + disk.writeBytesPerSec
@@ -86,7 +94,8 @@ final class MetricsMonitor: ObservableObject {
             batteryPercent: battery.map { Self.clamp($0.percent) },
             batteryIsCharging: battery?.isCharging,
             batteryOnACPower: battery?.onACPower,
-            batteryMinutesRemaining: battery?.minutesRemaining
+            batteryMinutesRemaining: battery?.minutesRemaining,
+            topProcesses: topProcesses
         )
 
         snapshot = newSnapshot
@@ -99,6 +108,10 @@ final class MetricsMonitor: ObservableObject {
                     : (newSnapshot.batteryOnACPower == true ? "on AC" : "on battery")
                 batteryText = String(format: "  batt %.0f%% (%@)", percent, state)
             }
+            var processText = ""
+            if let top = newSnapshot.topProcesses.byCPU.first {
+                processText = String(format: "  top %@ %.0f%%", top.name, top.cpuPercent)
+            }
             print(String(
                 format: "cpu %5.1f%%  mem %5.1f%% (%.2f GiB)  net rx %.2f MB/s tx %.2f MB/s  disk r %.2f MB/s w %.2f MB/s",
                 newSnapshot.cpuPercent,
@@ -108,7 +121,22 @@ final class MetricsMonitor: ObservableObject {
                 newSnapshot.networkTxBytesPerSec / 1_000_000,
                 newSnapshot.diskReadBytesPerSec / 1_000_000,
                 newSnapshot.diskWriteBytesPerSec / 1_000_000
-            ) + batteryText)
+            ) + batteryText + processText)
+        }
+    }
+
+    /// Process sampling walks every process, so it runs off the main actor (in the
+    /// ProcessSampler actor) and only on every 3rd tick. Snapshots carry the latest result.
+    private func refreshTopProcesses() {
+        defer { tickCount += 1 }
+        let count = config.topProcessCount
+        guard count > 0, tickCount % 3 == 0, !processSamplingInFlight else { return }
+
+        processSamplingInFlight = true
+        Task { [weak self, processSampler] in
+            let result = await processSampler.sample(count: count)
+            self?.topProcesses = result
+            self?.processSamplingInFlight = false
         }
     }
 
