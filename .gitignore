@@ -1,2 +1,9 @@
 .DS_Store
 /syswatch.xcodeproj/project.xcworkspace/xcuserdata
+/syswatch.app/Contents/MacOS/syswatch
+/syswatch.app/Contents/_CodeSignature/CodeResources
+/syswatch.app/Contents/CodeResources
+/syswatch.app/Contents/embedded.provisionprofile
+/syswatch.app/Contents/Info.plist
+/SysWatch.app/Contents/Resources/.gitignore
+/syswatch.app/Contents/Resources/Assets.car
