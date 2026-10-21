@@ -12,47 +12,61 @@ import SwiftUI
 import SwiftUI
 
 struct MenuBarView: View {
-    @ObservedObject var monitor: MetricsMonitor
+    @ObservedObject                 var         monitor       : MetricsMonitor
+    @AppStorage("showTopProcesses") private var showProcesses : Bool        = false
+    @State                          private var processSort   : ProcessSort = .cpu
 
     var body: some View {
         let s = monitor.snapshot
 
         VStack(alignment: .leading, spacing: 14) {
             MetricRow(
-                title       : "CPU",
-                systemImage : "cpu",
-                percent     : s.cpuPercent,
-                detail      : cpuDetail(s)
+                title      : "CPU",
+                systemImage: "cpu",
+                percent    : s.cpuPercent,
+                detail     : cpuDetail(s)
             )
             MetricRow(
-                title       : "Memory",
-                systemImage : "memorychip",
-                percent     : s.memoryPercent,
-                detail      : memoryDetail(s)
+                title      : "Memory",
+                systemImage: "memorychip",
+                percent    : s.memoryPercent,
+                detail     : memoryDetail(s)
             )
             MetricRow(
-                title       : "Network",
-                systemImage : "network",
-                percent     : s.networkPercent,
-                detail      : "↓ \(Format.rate(s.networkRxBytesPerSec))   ↑ \(Format.rate(s.networkTxBytesPerSec))"
+                title      : "Network",
+                systemImage: "network",
+                percent    : s.networkPercent,
+                detail     : "↓ \(Format.rate(s.networkRxBytesPerSec))   ↑ \(Format.rate(s.networkTxBytesPerSec))"
             )
             MetricRow(
-                title       : "SSD",
-                systemImage : "internaldrive",
-                percent     : s.diskPercent,
-                detail      : "R \(Format.rate(s.diskReadBytesPerSec))   W \(Format.rate(s.diskWriteBytesPerSec))\n\(Format.file(s.diskUsedBytes)) of \(Format.file(s.diskTotalBytes)) used"
+                title      : "SSD",
+                systemImage: "internaldrive",
+                percent    : s.diskPercent,
+                detail     : "R \(Format.rate(s.diskReadBytesPerSec))   W \(Format.rate(s.diskWriteBytesPerSec))\n\(Format.file(s.diskUsedBytes)) of \(Format.file(s.diskTotalBytes)) used"
             )
 
             // Only shown on Macs with an internal battery.
             if let batteryPercent = s.batteryPercent {
                 MetricRow(
-                    title           : "Battery",
-                    systemImage     : s.batteryIsCharging == true ? "battery.100.bolt" : "battery.75",
-                    percent         : batteryPercent,
-                    detail          : batteryDetail(s),
-                    lowIsBad        : true,
-                    suppressWarning : s.batteryOnACPower == true
+                    title          : "Battery",
+                    systemImage    : s.batteryIsCharging == true ? "battery.100.bolt" : "battery.75",
+                    percent        : batteryPercent,
+                    detail         : batteryDetail(s),
+                    lowIsBad       : true,
+                    suppressWarning: s.batteryOnACPower == true
                 )
+            }
+
+            // Only offered when process sampling returned something.
+            if !s.topProcesses.isEmpty {
+                Divider()
+                DisclosureGroup(isExpanded: $showProcesses) {
+                    ProcessList(sort: $processSort, processes: s.topProcesses)
+                        .padding(.top, 8)
+                } label: {
+                    Label("Top processes", systemImage: "list.number")
+                        .font(.headline)
+                }
             }
 
             Divider()
@@ -96,16 +110,72 @@ struct MenuBarView: View {
     }
 }
 
+private enum ProcessSort: String, CaseIterable, Identifiable {
+    case cpu    = "CPU"
+    case memory = "Memory"
+    var id: Self { self }
+}
+
+// The heaviest processes, sorted by CPU or by memory. CPU is shown as a share of one core, like Activity Monitor, so a busy multi-threaded process can exceed 100 %.
+private struct ProcessList: View {
+    @Binding var sort: ProcessSort
+    let processes: TopProcesses
+
+
+    private var rows: [ProcessUsage] {
+        Array((sort == .cpu ? processes.byCPU : processes.byMemory).prefix(5))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Sort by", selection: $sort) {
+                ForEach(ProcessSort.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            if rows.isEmpty {
+                Text("No data yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(rows, id: \.pid) { process in
+                HStack(spacing: 6) {
+                    Text(process.name)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text("\(process.pid)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                    Spacer(minLength: 8)
+                    Text(sort == .cpu
+                         ? "\(Int(process.cpuPercent.rounded())) %"
+                         : Format.memory(process.memoryBytes))
+                        .monospacedDigit()
+                        .foregroundStyle(sort == .cpu && process.cpuPercent >= 100 ? Color.orange : Color.primary)
+                }
+                .font(.callout)
+            }
+            if sort == .cpu {
+                Text("% of one core")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 private struct MetricRow: View {
-    let title           : String
-    let systemImage     : String
-    let percent         : Double
-    let detail          : String
-    var lowIsBad        : Bool = false // For the battery: a low value is the bad case, so the colours are inverted.
-    var suppressWarning : Bool = false // Skip warning colours, e.g. a low battery that is currently charging is not a problem.
-
+    let title      : String
+    let systemImage: String
+    let percent    : Double
+    let detail     : String
+    
+    var lowIsBad        : Bool = false /// For the battery: a low value is the bad case, so the colours are inverted.
+    var suppressWarning : Bool = false /// Skip warning colours, e.g. a low battery that is currently charging is not a problem.
+    
     private var fraction: Double { min(max(percent, 0), 100) / 100 }
-
     private var barColor: Color {
         if lowIsBad {
             if suppressWarning { return .green }
@@ -122,6 +192,7 @@ private struct MetricRow: View {
         }
     }
 
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {

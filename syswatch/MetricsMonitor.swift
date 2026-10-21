@@ -13,7 +13,7 @@ import SwiftUI
 struct MonitorConfig {
     var maxNetworkBytesPerSec : Double = 125_000_000   // Network: combined rx + tx bytes/sec that counts as 100%. Default: 1 Gbit/s = 125 MB/s.
     var maxDiskBytesPerSec    : Double = 2_000_000_000 // Disk: combined read + write bytes/sec that counts as 100%. Default: 2 GB/s.
-    var topProcessCount       : Int    = 3             // How many top processes (by CPU and by memory) to report. 0 disables process sampling.
+    var topProcessCount       : Int    = 5             // How many top processes (by CPU and by memory) to report. 0 disables process sampling.
 }
 
 /// Samples all metrics once per second and publishes the latest snapshot.
