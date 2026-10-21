@@ -10,8 +10,8 @@ import Foundation
 
 
 struct NetworkReading {
-    let rxBytesPerSec: Double
-    let txBytesPerSec: Double
+    let rxBytesPerSec : Double
+    let txBytesPerSec : Double
 }
 
 
@@ -33,8 +33,8 @@ final class NetworkSampler {
             return NetworkReading(rxBytesPerSec: 0, txBytesPerSec: 0)
         }
 
-        var rx: UInt64 = 0
-        var tx: UInt64 = 0
+        var rx : UInt64 = 0
+        var tx : UInt64 = 0
         for (name, current) in counters {
             // An interface that just appeared has no baseline, so it contributes 0 this round.
             guard let old = previousCounters[name] else { continue }
@@ -44,13 +44,13 @@ final class NetworkSampler {
 
         let elapsed = now - previousTime
         return NetworkReading(
-            rxBytesPerSec: Double(rx) / elapsed,
-            txBytesPerSec: Double(tx) / elapsed
+            rxBytesPerSec : Double(rx) / elapsed,
+            txBytesPerSec : Double(tx) / elapsed
         )
     }
 
     private func readCounters() -> Counters {
-        var result: Counters = [:]
+        var result : Counters = [:]
 
         var listHead: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&listHead) == 0, let first = listHead else { return result }

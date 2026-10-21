@@ -13,8 +13,9 @@ import AppKit
 @main
 struct SystemMonitorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var monitor = MetricsMonitor.shared
+    @StateObject                                    private var monitor = MetricsMonitor.shared
 
+    
     var body: some Scene {
         MenuBarExtra {
             MenuBarView(monitor: monitor)
@@ -25,13 +26,13 @@ struct SystemMonitorApp: App {
     }
 }
 
-/// Starts sampling at launch. Content inside MenuBarExtra is only built when the
-/// window is opened, so starting the monitor from the view would be too late.
+
+// Starts sampling at launch. Content inside MenuBarExtra is only built when the
+// window is opened, so starting the monitor from the view would be too late.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let server = MetricsWebSocketServer(port: 8787)
-
-    private let encoder: JSONEncoder = {
+    private let server  : MetricsWebSocketServer = MetricsWebSocketServer(port: 8787)
+    private let encoder : JSONEncoder            = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
@@ -39,8 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Menu bar only, no Dock icon. Setting LSUIElement = YES in Info.plist does the
-        // same thing without the brief Dock flash at launch.
+        // Menu bar only, no Dock icon. Setting LSUIElement = YES in Info.plist does the same thing without the brief Dock flash at launch.
         NSApp.setActivationPolicy(.accessory)
 
         // Encode on the main actor (where the snapshot type lives), send from the server's queue.

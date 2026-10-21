@@ -12,59 +12,61 @@ import Darwin
 
 /// One process as reported to consumers.
 nonisolated struct ProcessUsage: Codable, Sendable, Equatable {
-    let pid: Int32
-    let name: String
-    /// Percent of ONE core, so a process using three cores fully shows about 300.
-    let cpuPercent: Double
-    /// Physical footprint, the figure Activity Monitor shows in its Memory column.
-    let memoryBytes: UInt64
+    let pid         : Int32
+    let name        : String
+    let cpuPercent  : Double // Percent of ONE core, so a process using three cores fully shows about 300.
+    let memoryBytes : UInt64 // Physical footprint, the figure Activity Monitor shows in its Memory column.
 }
 
 nonisolated struct TopProcesses: Codable, Sendable, Equatable {
-    var byCPU: [ProcessUsage] = []
-    var byMemory: [ProcessUsage] = []
+    var byCPU    : [ProcessUsage] = []
+    var byMemory : [ProcessUsage] = []
 
     static let empty = TopProcesses()
 
     var isEmpty: Bool { byCPU.isEmpty && byMemory.isEmpty }
 }
 
-/// Finds the processes using the most CPU and memory, via libproc.
-///
-/// This walks every process, so it is an actor: it runs off the main actor, and the
-/// monitor only calls it every few ticks. CPU load is the delta of each process's
-/// cumulative CPU time between two calls, so the first call reports no CPU ranking.
-///
-/// Inside the App Sandbox, macOS may refuse to hand out information about other
-/// processes. The sampler then returns an empty or partial list and prints one warning.
+// Finds the processes using the most CPU and memory, via libproc.
+//
+// This walks every process, so it is an actor: it runs off the main actor, and the
+// monitor only calls it every few ticks. CPU load is the delta of each process's
+// cumulative CPU time between two calls, so the first call reports no CPU ranking.
+//
+// Inside the App Sandbox, macOS may refuse to hand out information about other
+// processes. The sampler then returns an empty or partial list and prints one warning.
 actor ProcessSampler {
+    
     private struct Sample {
-        let pid: Int32
-        let cpuTimeNs: UInt64
-        let footprint: UInt64
+        let pid       : Int32
+        let cpuTimeNs : UInt64
+        let footprint : UInt64
     }
 
-    private let timebase: mach_timebase_info_data_t
-    private var previousCPUTime: [Int32: UInt64] = [:]
-    private var previousUptimeNs: UInt64?
-    private var didWarn = false
+    
+    private let timebase         : mach_timebase_info_data_t
+    private var previousCPUTime  : [Int32: UInt64] = [:]
+    private var previousUptimeNs : UInt64?
+    private var didWarn          : Bool            = false
 
+    
     init() {
         var info = mach_timebase_info_data_t()
         mach_timebase_info(&info)
         timebase = info
     }
 
+    
     func sample(count: Int) -> TopProcesses {
         let nowNs = DispatchTime.now().uptimeNanoseconds
-        let pids = listPIDs()
+        let pids  = listPIDs()
 
-        var samples: [Sample] = []
+        var samples : [Sample] = []
         samples.reserveCapacity(pids.count)
         var failures = 0
 
         for pid in pids {
-            var usage = rusage_info_v4()
+            var usage  = rusage_info_v4()
             let result = withUnsafeMutablePointer(to: &usage) { pointer in
                 pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { raw in
                     proc_pid_rusage(pid, RUSAGE_INFO_V4, raw)
@@ -74,11 +76,7 @@ actor ProcessSampler {
                 failures += 1
                 continue
             }
-            samples.append(Sample(
-                pid: pid,
-                cpuTimeNs: nanoseconds(usage.ri_user_time &+ usage.ri_system_time),
-                footprint: usage.ri_phys_footprint
-            ))
+            samples.append(Sample(pid: pid, cpuTimeNs: nanoseconds(usage.ri_user_time &+ usage.ri_system_time), footprint: usage.ri_phys_footprint))
         }
         warnIfUnreadable(total: pids.count, failures: failures)
 
@@ -148,7 +146,6 @@ actor ProcessSampler {
     private func warnIfUnreadable(total: Int, failures: Int) {
         guard !didWarn, total == 0 || failures * 2 > total else { return }
         didWarn = true
-        print("ProcessSampler: could not read \(failures) of \(total) processes. "
-              + "The App Sandbox probably blocks process information, so the top-process list will be incomplete or empty.")
+        print("ProcessSampler: could not read \(failures) of \(total) processes. The App Sandbox probably blocks process information, so the top-process list will be incomplete or empty.")
     }
 }

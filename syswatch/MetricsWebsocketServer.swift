@@ -24,28 +24,31 @@ nonisolated final class MetricsWebSocketServer: @unchecked Sendable {
     /// to declare @unchecked Sendable. That silences the capture warning in the
     /// @Sendable completion handlers without changing behaviour.
     private final class Client: @unchecked Sendable {
-        let connection: NWConnection
-        var isSending = false
+        let connection : NWConnection
+        var isSending  : Bool = false
 
+        
         init(_ connection: NWConnection) {
             self.connection = connection
         }
     }
 
-    private let port: NWEndpoint.Port
-    private let allowedOrigins: Set<String>
+    private let port           : NWEndpoint.Port
+    private let allowedOrigins : Set<String>
     private let queue = DispatchQueue(label: "SystemMonitor.WebSocketServer")
 
     // Confined to `queue`.
-    private var listener: NWListener?
-    private var clients: [ObjectIdentifier: Client] = [:]
-    private var latest: Data?
+    private var listener : NWListener?
+    private var clients  : [ObjectIdentifier: Client] = [:]
+    private var latest   : Data?
 
+    
     init(port: UInt16 = 8787, allowedOrigins: Set<String> = []) {
-        self.port = NWEndpoint.Port(rawValue: port) ?? 8787
+        self.port           = NWEndpoint.Port(rawValue: port) ?? 8787
         self.allowedOrigins = allowedOrigins
     }
 
+    
     func start() {
         queue.async { [self] in
             guard listener == nil else { return }
@@ -55,9 +58,7 @@ nonisolated final class MetricsWebSocketServer: @unchecked Sendable {
 
             let allowed = allowedOrigins
             webSocketOptions.setClientRequestHandler(queue) { _, headers in
-                let origin = headers.first {
-                    $0.name.caseInsensitiveCompare("Origin") == .orderedSame
-                }?.value
+                let origin = headers.first { $0.name.caseInsensitiveCompare("Origin") == .orderedSame }?.value
                 if let origin, !allowed.contains(origin) {
                     print("WebSocket: rejected connection with Origin \(origin)")
                     return NWProtocolWebSocket.Response(status: .reject, subprotocol: nil)
@@ -94,7 +95,7 @@ nonisolated final class MetricsWebSocketServer: @unchecked Sendable {
         }
     }
 
-    /// Sends one JSON document (UTF-8) as a text frame to every connected client.
+    // Sends one JSON document (UTF-8) as a text frame to every connected client.
     func broadcast(_ json: Data) {
         queue.async { [self] in
             latest = json
@@ -108,7 +109,7 @@ nonisolated final class MetricsWebSocketServer: @unchecked Sendable {
 
     private func accept(_ connection: NWConnection) {
         let client = Client(connection)
-        let id = ObjectIdentifier(client)
+        let id     = ObjectIdentifier(client)
 
         connection.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
@@ -131,8 +132,8 @@ nonisolated final class MetricsWebSocketServer: @unchecked Sendable {
         connection.start(queue: queue)
     }
 
-    /// Clients are not expected to send anything, but reading keeps control frames
-    /// (close, ping) flowing and tells us when the client goes away.
+    // Clients are not expected to send anything, but reading keeps control frames
+    // (close, ping) flowing and tells us when the client goes away.
     private func receiveLoop(_ client: Client) {
         client.connection.receiveMessage { [weak self] _, context, _, error in
             guard let self else { return }
@@ -155,7 +156,7 @@ nonisolated final class MetricsWebSocketServer: @unchecked Sendable {
         client.isSending = true
 
         let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
-        let context = NWConnection.ContentContext(identifier: "snapshot", metadata: [metadata])
+        let context  = NWConnection.ContentContext(identifier: "snapshot", metadata: [metadata])
         client.connection.send(
             content: data,
             contentContext: context,

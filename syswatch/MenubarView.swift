@@ -19,40 +19,39 @@ struct MenuBarView: View {
 
         VStack(alignment: .leading, spacing: 14) {
             MetricRow(
-                title: "CPU",
-                systemImage: "cpu",
-                percent: s.cpuPercent,
-                detail: cpuDetail(s)
+                title       : "CPU",
+                systemImage : "cpu",
+                percent     : s.cpuPercent,
+                detail      : cpuDetail(s)
             )
             MetricRow(
-                title: "Memory",
-                systemImage: "memorychip",
-                percent: s.memoryPercent,
-                detail: memoryDetail(s)
+                title       : "Memory",
+                systemImage : "memorychip",
+                percent     : s.memoryPercent,
+                detail      : memoryDetail(s)
             )
             MetricRow(
-                title: "Network",
-                systemImage: "network",
-                percent: s.networkPercent,
-                detail: "↓ \(Format.rate(s.networkRxBytesPerSec))   ↑ \(Format.rate(s.networkTxBytesPerSec))"
+                title       : "Network",
+                systemImage : "network",
+                percent     : s.networkPercent,
+                detail      : "↓ \(Format.rate(s.networkRxBytesPerSec))   ↑ \(Format.rate(s.networkTxBytesPerSec))"
             )
             MetricRow(
-                title: "SSD",
-                systemImage: "internaldrive",
-                percent: s.diskPercent,
-                detail: "R \(Format.rate(s.diskReadBytesPerSec))   W \(Format.rate(s.diskWriteBytesPerSec))"
-                    + "\n\(Format.file(s.diskUsedBytes)) of \(Format.file(s.diskTotalBytes)) used"
+                title       : "SSD",
+                systemImage : "internaldrive",
+                percent     : s.diskPercent,
+                detail      : "R \(Format.rate(s.diskReadBytesPerSec))   W \(Format.rate(s.diskWriteBytesPerSec))\n\(Format.file(s.diskUsedBytes)) of \(Format.file(s.diskTotalBytes)) used"
             )
 
             // Only shown on Macs with an internal battery.
             if let batteryPercent = s.batteryPercent {
                 MetricRow(
-                    title: "Battery",
-                    systemImage: s.batteryIsCharging == true ? "battery.100.bolt" : "battery.75",
-                    percent: batteryPercent,
-                    detail: batteryDetail(s),
-                    lowIsBad: true,
-                    suppressWarning: s.batteryOnACPower == true
+                    title           : "Battery",
+                    systemImage     : s.batteryIsCharging == true ? "battery.100.bolt" : "battery.75",
+                    percent         : batteryPercent,
+                    detail          : batteryDetail(s),
+                    lowIsBad        : true,
+                    suppressWarning : s.batteryOnACPower == true
                 )
             }
 
@@ -78,7 +77,7 @@ struct MenuBarView: View {
 
     private func memoryDetail(_ s: MetricsSnapshot) -> String {
         var text = "\(Format.memory(s.memoryUsedBytes)) of \(Format.memory(s.memoryTotalBytes))"
-        let top = s.topProcesses.byMemory.prefix(2).map { "\($0.name) \(Format.memory($0.memoryBytes))" }
+        let top  = s.topProcesses.byMemory.prefix(2).map { "\($0.name) \(Format.memory($0.memoryBytes))" }
         if !top.isEmpty {
             text += "\nTop: " + top.joined(separator: ", ")
         }
@@ -98,14 +97,12 @@ struct MenuBarView: View {
 }
 
 private struct MetricRow: View {
-    let title: String
-    let systemImage: String
-    let percent: Double
-    let detail: String
-    /// For the battery: a low value is the bad case, so the colours are inverted.
-    var lowIsBad = false
-    /// Skip warning colours, e.g. a low battery that is currently charging is not a problem.
-    var suppressWarning = false
+    let title           : String
+    let systemImage     : String
+    let percent         : Double
+    let detail          : String
+    var lowIsBad        : Bool = false // For the battery: a low value is the bad case, so the colours are inverted.
+    var suppressWarning : Bool = false // Skip warning colours, e.g. a low battery that is currently charging is not a problem.
 
     private var fraction: Double { min(max(percent, 0), 100) / 100 }
 
@@ -113,15 +110,15 @@ private struct MetricRow: View {
         if lowIsBad {
             if suppressWarning { return .green }
             switch percent {
-            case ..<10: return .red
-            case ..<20: return .yellow
-            default: return .green
+                case ..<10 : return .red
+                case ..<20 : return .yellow
+                default    : return .green
             }
         }
         switch percent {
-        case ..<60: return .green
-        case ..<85: return .orange
-        default: return .red
+            case ..<60 : return .green
+            case ..<85 : return .orange
+            default    : return .red
         }
     }
 

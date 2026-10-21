@@ -22,33 +22,28 @@ final class DiskSampler {
     private var lastTime   : TimeInterval?
 
     func sample() -> DiskReading {
-        let now = ProcessInfo.processInfo.systemUptime
-        let totals = readTotals()
+        let now            = ProcessInfo.processInfo.systemUptime
+        let totals         = readTotals()
         let previousTotals = lastTotals
-        let previousTime = lastTime
+        let previousTime   = lastTime
         if let totals {
             lastTotals = totals
-            lastTime = now
+            lastTime   = now
         }
 
-        var readRate = 0.0
+        var readRate  = 0.0
         var writeRate = 0.0
         if let totals, let previousTotals, let previousTime, now > previousTime {
             let elapsed = now - previousTime
             // A device disappearing lowers the sum; treat that as "no I/O" instead of underflowing.
-            let readDelta = totals.read >= previousTotals.read ? totals.read - previousTotals.read : 0
+            let readDelta  = totals.read >= previousTotals.read ? totals.read - previousTotals.read : 0
             let writeDelta = totals.write >= previousTotals.write ? totals.write - previousTotals.write : 0
-            readRate = Double(readDelta) / elapsed
+            readRate  = Double(readDelta) / elapsed
             writeRate = Double(writeDelta) / elapsed
         }
 
         let capacity = readCapacity()
-        return DiskReading(
-            readBytesPerSec: readRate,
-            writeBytesPerSec: writeRate,
-            usedBytes: capacity.used,
-            totalBytes: capacity.total
-        )
+        return DiskReading(readBytesPerSec: readRate, writeBytesPerSec: writeRate, usedBytes: capacity.used, totalBytes: capacity.total)
     }
 
     private func readTotals() -> (read: UInt64, write: UInt64)? {
@@ -59,8 +54,8 @@ final class DiskSampler {
         }
         defer { IOObjectRelease(iterator) }
 
-        var read: UInt64 = 0
-        var write: UInt64 = 0
+        var read  : UInt64 = 0
+        var write : UInt64 = 0
 
         var entry = IOIteratorNext(iterator)
         while entry != 0 {
@@ -68,7 +63,7 @@ final class DiskSampler {
                 entry, "Statistics" as CFString, kCFAllocatorDefault, 0
             ) {
                 if let stats = property.takeRetainedValue() as? [String: Any] {
-                    read += (stats["Bytes (Read)"] as? NSNumber)?.uint64Value ?? 0
+                    read  += (stats["Bytes (Read)"] as? NSNumber)?.uint64Value ?? 0
                     write += (stats["Bytes (Write)"] as? NSNumber)?.uint64Value ?? 0
                 }
             }

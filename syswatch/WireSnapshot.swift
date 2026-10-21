@@ -7,7 +7,6 @@
 
 import Foundation
 
-import Foundation
 
 /// The JSON contract for WebSocket clients (version 1).
 ///
@@ -40,102 +39,76 @@ import Foundation
 /// 100% means for network and disk.
 struct WireSnapshot: Encodable {
     struct CPU: Encodable {
-        let percent: Double
-        /// Logical cores. Per-process cpuPercent is relative to ONE core (max = cores * 100).
-        let cores: Int
+        let percent : Double
+        let cores   : Int // Logical cores. Per-process cpuPercent is relative to ONE core (max = cores * 100).
     }
 
     struct Memory: Encodable {
-        let percent: Double
-        let usedBytes: UInt64
-        let totalBytes: UInt64
+        let percent    : Double
+        let usedBytes  : UInt64
+        let totalBytes : UInt64
     }
 
     struct Network: Encodable {
-        let percent: Double
-        let rxBytesPerSec: Double
-        let txBytesPerSec: Double
-        let scaleMaxBytesPerSec: Double
+        let percent             : Double
+        let rxBytesPerSec       : Double
+        let txBytesPerSec       : Double
+        let scaleMaxBytesPerSec : Double
     }
 
     struct Disk: Encodable {
-        let percent: Double
-        let readBytesPerSec: Double
-        let writeBytesPerSec: Double
-        let usedBytes: UInt64
-        let totalBytes: UInt64
-        let scaleMaxBytesPerSec: Double
+        let percent             : Double
+        let readBytesPerSec     : Double
+        let writeBytesPerSec    : Double
+        let usedBytes           : UInt64
+        let totalBytes          : UInt64
+        let scaleMaxBytesPerSec : Double
     }
 
     struct Battery: Encodable {
-        let percent: Double
-        let charging: Bool
-        let onACPower: Bool
-        let minutesRemaining: Int?
+        let percent          : Double
+        let charging         : Bool
+        let onACPower        : Bool
+        let minutesRemaining : Int?
     }
 
     struct ProcessEntry: Encodable {
-        let pid: Int32
-        let name: String
-        /// Percent of one core; a process using three cores fully shows about 300.
-        let cpuPercent: Double
-        let memoryBytes: UInt64
+        let pid         : Int32
+        let name        : String
+        let cpuPercent  : Double // Percent of one core; a process using three cores fully shows about 300.
+        let memoryBytes : UInt64
 
         init(_ usage: ProcessUsage) {
-            pid = usage.pid
-            name = usage.name
-            cpuPercent = WireSnapshot.round1(usage.cpuPercent)
+            pid         = usage.pid
+            name        = usage.name
+            cpuPercent  = WireSnapshot.round1(usage.cpuPercent)
             memoryBytes = usage.memoryBytes
         }
     }
 
     struct Processes: Encodable {
-        let cpu: [ProcessEntry]
-        let memory: [ProcessEntry]
+        let cpu    : [ProcessEntry]
+        let memory : [ProcessEntry]
     }
 
-    let type = "snapshot"
+    let type    = "snapshot"
     let version = 1
-    let timestamp: Date
-    let cpu: CPU
-    let memory: Memory
-    let network: Network
-    let disk: Disk
-    let battery: Battery?
-    let topProcesses: Processes?
+    let timestamp    : Date
+    let cpu          : CPU
+    let memory       : Memory
+    let network      : Network
+    let disk         : Disk
+    let battery      : Battery?
+    let topProcesses : Processes?
 
     init(snapshot s: MetricsSnapshot, config: MonitorConfig) {
         timestamp = s.timestamp
-        cpu = CPU(
-            percent: Self.round1(s.cpuPercent),
-            cores: ProcessInfo.processInfo.activeProcessorCount
-        )
-        memory = Memory(
-            percent: Self.round1(s.memoryPercent),
-            usedBytes: s.memoryUsedBytes,
-            totalBytes: s.memoryTotalBytes
-        )
-        network = Network(
-            percent: Self.round1(s.networkPercent),
-            rxBytesPerSec: s.networkRxBytesPerSec.rounded(),
-            txBytesPerSec: s.networkTxBytesPerSec.rounded(),
-            scaleMaxBytesPerSec: config.maxNetworkBytesPerSec
-        )
-        disk = Disk(
-            percent: Self.round1(s.diskPercent),
-            readBytesPerSec: s.diskReadBytesPerSec.rounded(),
-            writeBytesPerSec: s.diskWriteBytesPerSec.rounded(),
-            usedBytes: s.diskUsedBytes,
-            totalBytes: s.diskTotalBytes,
-            scaleMaxBytesPerSec: config.maxDiskBytesPerSec
-        )
+        cpu     = CPU(percent: Self.round1(s.cpuPercent), cores: ProcessInfo.processInfo.activeProcessorCount)
+        memory  = Memory(percent: Self.round1(s.memoryPercent), usedBytes: s.memoryUsedBytes, totalBytes: s.memoryTotalBytes)
+        network = Network(percent: Self.round1(s.networkPercent), rxBytesPerSec: s.networkRxBytesPerSec.rounded(), txBytesPerSec: s.networkTxBytesPerSec.rounded(), scaleMaxBytesPerSec: config.maxNetworkBytesPerSec)
+        disk    = Disk(percent: Self.round1(s.diskPercent), readBytesPerSec: s.diskReadBytesPerSec.rounded(), writeBytesPerSec: s.diskWriteBytesPerSec.rounded(), usedBytes: s.diskUsedBytes, totalBytes: s.diskTotalBytes, scaleMaxBytesPerSec: config.maxDiskBytesPerSec)
         if let percent = s.batteryPercent {
-            battery = Battery(
-                percent: Self.round1(percent),
-                charging: s.batteryIsCharging ?? false,
-                onACPower: s.batteryOnACPower ?? false,
-                minutesRemaining: s.batteryMinutesRemaining
-            )
+            battery = Battery(percent: Self.round1(percent), charging: s.batteryIsCharging ?? false, onACPower: s.batteryOnACPower ?? false, minutesRemaining: s.batteryMinutesRemaining)
         } else {
             battery = nil
         }
@@ -143,10 +116,7 @@ struct WireSnapshot: Encodable {
         if s.topProcesses.isEmpty {
             topProcesses = nil
         } else {
-            topProcesses = Processes(
-                cpu: s.topProcesses.byCPU.map { ProcessEntry($0) },
-                memory: s.topProcesses.byMemory.map { ProcessEntry($0) }
-            )
+            topProcesses = Processes(cpu: s.topProcesses.byCPU.map { ProcessEntry($0) }, memory: s.topProcesses.byMemory.map { ProcessEntry($0) })
         }
     }
 
