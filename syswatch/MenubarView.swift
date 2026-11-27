@@ -85,13 +85,13 @@ struct MenuBarView: View {
     }
 
     private func cpuDetail(_ s: MetricsSnapshot) -> String {
-        let top = s.topProcesses.byCPU.prefix(2).map { "\($0.name) \(Int($0.cpuPercent.rounded())) %" }
+        let top = s.topProcesses.byCPU.prefix(2).map { "\($0.name) (\($0.pid)) \(Int($0.cpuPercent.rounded())) %" }
         return top.isEmpty ? "Overall load, all cores" : "Top: " + top.joined(separator: ", ")
     }
 
     private func memoryDetail(_ s: MetricsSnapshot) -> String {
         var text = "\(Format.memory(s.memoryUsedBytes)) of \(Format.memory(s.memoryTotalBytes))"
-        let top  = s.topProcesses.byMemory.prefix(2).map { "\($0.name) \(Format.memory($0.memoryBytes))" }
+        let top  = s.topProcesses.byMemory.prefix(2).map { "\($0.name) (\($0.pid)) \(Format.memory($0.memoryBytes))" }
         if !top.isEmpty {
             text += "\nTop: " + top.joined(separator: ", ")
         }
@@ -146,7 +146,7 @@ private struct ProcessList: View {
                         .truncationMode(.tail)
                     Text("\(process.pid)")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .monospacedDigit()
                     Spacer(minLength: 8)
                     Text(sort == .cpu
